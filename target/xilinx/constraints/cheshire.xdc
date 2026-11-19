@@ -12,10 +12,6 @@
 # Clock routing #
 #################
 
-# JTAG is on non-clock-capable GPIOs (if not using BSCANE)
-set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets -of [get_ports jtag_tck_i]]
-set_property CLOCK_BUFFER_TYPE NONE [get_nets -of [get_ports jtag_tck_i]]
-
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets -of [get_ports sys_reset*]]
 set_property CLOCK_BUFFER_TYPE NONE [get_nets -of [get_ports sys_reset*]]
 
@@ -29,24 +25,9 @@ set_property CLOCK_BUFFER_TYPE NONE $all_in_mux
 # JTAG #
 ########
 
-# 10 MHz (max) JTAG clock
-set JTAG_TCK 100.0
-
-# JTAG Clock
-create_clock -period $JTAG_TCK -name clk_jtag [get_ports jtag_tck_i]
-set_input_jitter clk_jtag 1.000
-
-# JTAG Clock is asynchronous to all other clocks
-set_clock_groups -name jtag_async -asynchronous -group {clk_jtag}
-
-set_input_delay -min -clock clk_jtag [expr { 0.10 * $JTAG_TCK }] [get_ports {jtag_tdi_i jtag_tms_i}]
-set_input_delay -max -clock clk_jtag [expr { 0.20 * $JTAG_TCK }] [get_ports {jtag_tdi_i jtag_tms_i}]
-
-set_output_delay -min -clock clk_jtag [expr { 0.10 * $JTAG_TCK }] [get_ports jtag_tdo_o]
-set_output_delay -max -clock clk_jtag [expr { 0.20 * $JTAG_TCK }] [get_ports jtag_tdo_o]
-
-set_max_delay -from [get_ports jtag_trst_ni] $JTAG_TCK
-set_false_path -hold -from [get_ports jtag_trst_ni]
+# BSCANE TCK is independent of the SoC/MMCM/DDR clocks.
+create_clock -period 100.000 -name clk_jtag [get_pins -hier -filter {REF_PIN_NAME == TCK && NAME =~ *i_tap_dtmcs/TCK}]
+set_clock_groups -name jtag_async -asynchronous -group [get_clocks clk_jtag]
 
 ########
 # UART #

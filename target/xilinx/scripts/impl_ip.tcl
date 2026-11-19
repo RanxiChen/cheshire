@@ -18,6 +18,16 @@ switch $proj {
     clkwiz {
         create_ip -name clk_wiz -vendor xilinx.com -library ip -version 6.0 -module_name $proj
         switch $board {
+            kcu105 {
+                set_property -dict [list \
+                    CONFIG.PRIM_SOURCE {No_buffer} \
+                    CONFIG.PRIM_IN_FREQ {125.000} \
+                    CONFIG.CLK_OUT1_PORT {clk_50} \
+                    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {50.000} \
+                    CONFIG.USE_LOCKED {true} \
+                    CONFIG.USE_RESET {true} \
+                    ] [get_ips $proj]
+            }
             genesys2 {
                 set_property -dict [list \
                     CONFIG.PRIM_SOURCE {No_buffer} \
@@ -132,6 +142,16 @@ switch $proj {
     vio {
         create_ip -name vio -vendor xilinx.com -library ip -version 3.0 -module_name $proj
         switch $board {
+            kcu105 {
+                set_property -dict [list \
+                    CONFIG.C_NUM_PROBE_OUT {3} \
+                    CONFIG.C_PROBE_OUT0_INIT_VAL {0x0} \
+                    CONFIG.C_PROBE_OUT1_INIT_VAL {0x1} \
+                    CONFIG.C_PROBE_OUT2_INIT_VAL {0x1} \
+                    CONFIG.C_PROBE_OUT1_WIDTH {2} \
+                    CONFIG.C_NUM_PROBE_IN {0} \
+                    ] [get_ips $proj]
+            }
             genesys2 {
                 set_property -dict [list \
                     CONFIG.C_NUM_PROBE_OUT {3} \
@@ -180,6 +200,22 @@ switch $proj {
     ddr4 {
         create_ip -name ddr4 -vendor xilinx.com -library ip -version 2.2 -module_name $proj
         switch $board {
+            kcu105 {
+                set_property -dict [list \
+                    CONFIG.C0_DDR4_BOARD_INTERFACE {Custom} \
+                    CONFIG.C0_CLOCK_BOARD_INTERFACE {Custom} \
+                    CONFIG.System_Clock {Differential} \
+                    CONFIG.C0.DDR4_MemoryPart {MT40A256M16GE-083E} \
+                    CONFIG.C0.DDR4_DataWidth {64} \
+                    CONFIG.C0.DDR4_TimePeriod {833} \
+                    CONFIG.C0.DDR4_InputClockPeriod {3332} \
+                    CONFIG.C0.DDR4_AxiSelection {true} \
+                    CONFIG.C0.DDR4_AxiDataWidth {512} \
+                    CONFIG.C0.DDR4_AxiAddressWidth {31} \
+                    CONFIG.C0.DDR4_AxiIDWidth {8} \
+                    CONFIG.ADDN_UI_CLKOUT1_FREQ_HZ {None} \
+                    ] [get_ips $proj]
+            }
             vcu128 {
                 set_property -dict [list \
                     CONFIG.C0.DDR4_Clamshell {true} \

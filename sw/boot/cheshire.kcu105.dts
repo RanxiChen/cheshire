@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: SHL-0.51
+
+/include/ "cheshire.dtsi"
+
+/ {
+  model = "Cheshire on AMD KCU105";
+
+  memory@80000000 {
+    reg = <0x0 0x80000000 0x0 0x80000000>;
+  };
+
+  soc {
+    i2c@3003000 {
+      status = "disabled";
+    };
+    vga@3007000 {
+      status = "disabled";
+    };
+    memory-controller@3006000 {
+      status = "disabled";
+    };
+  };
+};
+
+&spi {
+  mmc@0 {
+    compatible = "mmc-spi-slot";
+    reg = <0>;
+    spi-max-frequency = <12500000>;
+    voltage-ranges = <3300 3300>;
+    disable-wp;
+  };
+};

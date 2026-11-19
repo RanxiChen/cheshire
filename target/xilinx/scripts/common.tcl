@@ -24,6 +24,10 @@ set hwdev(vcu118) "xcvu9p_0"
 set cfgmp(vcu118) "mt25qu01g-spi-x1_x2_x4"
 
 
+# KCU105 uses explicit pin constraints and custom DDR parameters.
+set fpart(kcu105) "xcku040-ffva1156-2-e"
+set hwdev(kcu105) "xcku040_0"
+
 # Initialize an implementation project
 proc init_impl {xilinx_root argc argv} {
     global fpart
@@ -52,7 +56,9 @@ proc init_impl {xilinx_root argc argv} {
     file delete -force [glob -nocomplain ${project_root}/*]
     # Create project
     create_project $proj $project_root -force -part $fpart($board)
-    set_property board_part $bpart($board) [current_project]
+    if {[info exists bpart($board)]} {
+        set_property board_part $bpart($board) [current_project]
+    }
 }
 
 # Open a target device in the hardware manager

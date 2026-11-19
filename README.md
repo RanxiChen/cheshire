@@ -41,3 +41,31 @@ If you use Cheshire in your work, you can cite us:
       doi     = {10.1109/TCSII.2023.3289186}
 }
 ```
+
+## KCU105 CVA6 + FASE microcode
+
+This branch integrates the 50 MHz, single-hart PULP CVA6 with the FASE
+microcode controller, 2 GiB DDR4, and a 460800-baud FASE UART on KCU105.
+Bender pins the CVA6 FASE changes in `Bender.lock`. The controller RTL
+and its 256 × 39-bit ROM are included.
+
+```sh
+git clone --branch kcu105-fase-microcode https://github.com/RanxiChen/cheshire.git
+cd cheshire
+git submodule update --init --recursive
+uv sync --locked
+export PATH="$PWD/.venv/bin:$PATH"
+export BENDER_GIT_SUBMODULES=false
+bender checkout
+python3 handoff/run_build.py
+```
+
+Use Bender and Vivado 2022.2 on `PATH`, or set `BENDER` and `VIVADO`
+to their executable paths. The build regenerates peripheral register files
+from the pinned dependencies, writes the bitstream under `runs/<timestamp>/`,
+and retains the input and implementation reports.
+
+Run the RTL protocol test with `bash target/fase-sim/run.sh` using Verilator
+and the RISC-V Linux cross compiler. For the Host smoke test, set `FASE_HOST`,
+`FASE_HELLO`, and `FASE_CONFIG` to the original FASE Host executable, the
+bring-up ELF, and the KCU105 Host config, then run `bash target/fase-sim/host.sh`.

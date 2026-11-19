@@ -220,3 +220,7 @@ set_property -dict { PACKAGE_PIN T20   IOSTANDARD LVCMOS33 } [get_ports { usb_dm
 set_property -dict { PACKAGE_PIN T21   IOSTANDARD LVCMOS33 } [get_ports { usb_dp_io[0] }]; #IO_L4N_T0_D05_14 Sch=ja_n[4]
 
 # tclint-enable line-length, spacing
+
+# External JTAG reset is available on Genesys 2.
+set_max_delay -from [get_ports jtag_trst_ni] 100.0
+set_false_path -hold -from [get_ports jtag_trst_ni]

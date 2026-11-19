@@ -30,6 +30,12 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
   input  logic  sys_clk_p,
   input  logic  sys_clk_n,
 
+`ifdef TARGET_KCU105
+  input  logic  dram_clk_p,
+  input  logic  dram_clk_n,
+  output logic [2:0] board_led_o,
+`endif
+
 `ifdef USE_RESET
   input  logic  sys_reset,
 `endif
@@ -69,7 +75,9 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
   input  logic        sd_cd_i,
   output logic        sd_cmd_o,
   inout  wire  [3:0]  sd_d_io,
+`ifndef TARGET_KCU105
   output logic        sd_reset_o,
+`endif
   output logic        sd_sclk_o,
 `endif
 
@@ -106,10 +114,12 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
 `endif
 
   output logic  uart_tx_o,
-  input  logic  uart_rx_i,
-
+  input  logic  uart_rx_i
+`ifndef TARGET_KCU105
+  ,
   inout  wire [UsbNumPorts-1:0] usb_dm_io,
   inout  wire [UsbNumPorts-1:0] usb_dp_io
+`endif
 );
 
   ///////////////////////
@@ -121,6 +131,12 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
     cheshire_cfg_t ret  = DefaultCfg;
     ret.RtcFreq         = 1000000;
     ret.SerialLink      = 0;
+`ifdef TARGET_KCU105
+    ret.I2c             = 0;
+    ret.Gpio            = 0;
+    ret.Dma             = 0;
+    ret.Vga             = 0;
+`endif
   `ifdef USE_USB
     ret.Usb = 1;
   `else
@@ -159,6 +175,9 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
   wire sys_clk;
   wire soc_clk;
   wire usb_clk;
+`ifdef TARGET_KCU105
+  logic soc_clk_locked;
+`endif
 
   IBUFDS #(
     .IBUF_LOW_PWR ("FALSE")
@@ -170,13 +189,22 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
 
   clkwiz i_clkwiz (
     .clk_in1  ( sys_clk ),
+`ifdef TARGET_KCU105
+    .reset    ( sys_reset ),
+    .locked   ( soc_clk_locked ),
+    .clk_50   ( soc_clk )
+`else
     .reset    ( '0 ),
     .locked   ( ),
     .clk_50   ( soc_clk ),
     .clk_48   ( usb_clk ),
     .clk_20   ( ),
     .clk_10   ( )
+`endif
   );
+`ifdef TARGET_KCU105
+  assign usb_clk = 1'b0;
+`endif
 
   /////////////////////
   //  System Inputs  //
@@ -221,7 +249,11 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
 `endif
 
 `ifdef USE_RESET
+`ifdef TARGET_KCU105
+  assign sys_rst = sys_reset | vio_reset | ~soc_clk_locked;
+`else
   assign sys_rst = sys_reset | vio_reset;
+`endif
 `elsif USE_RESETN
   assign sys_rst = ~sys_resetn | vio_reset;
 `endif
@@ -311,8 +343,13 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
   logic [3:0] spi_sd_en;
 
 `ifdef USE_SD
+`ifndef TARGET_KCU105
   // Assert reset low => Apply power to the SD Card
   assign sd_reset_o       = 1'b0;
+`else
+  // J83 is powered by the board. CS1 has no device on this target.
+  assign spi_sd_spih_in = '0;
+`endif
   // SCK  - SD CLK signal
   assign sd_sclk_o        = spi_sck_en    ? spi_sck_soc       : 1'b1;
   // CS   - SD DAT3 signal
@@ -451,12 +488,17 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
   logic [UsbNumPorts-1:0] usb_dp_o;
   logic [UsbNumPorts-1:0] usb_dp_oe_o;
 
+`ifdef TARGET_KCU105
+  assign usb_dp_i = '0;
+  assign usb_dm_i = '0;
+`else
   for (genvar i = 0; i < FPGACfg.Usb*UsbNumPorts; ++i) begin : gen_usb_tristate
     assign usb_dp_io [i] = usb_dp_oe_o[i] ? usb_dp_o[i] : 'z;
     assign usb_dp_i  [i] = usb_dp_io[i];
     assign usb_dm_io [i] = usb_dm_oe_o[i] ? usb_dm_o[i] : 'z;
     assign usb_dm_i  [i] = usb_dm_io[i];
   end
+`endif
 
   /////////////////////////
   // "RTC" Clock Divider //
@@ -549,6 +591,19 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
   axi_llc_req_t axi_llc_mst_req, axi_dram_mst_req;
   axi_llc_rsp_t axi_llc_mst_rsp, axi_dram_mst_rsp;
 
+`ifdef TARGET_KCU105
+  logic dram_calib_complete, dram_calib_soc, sd_cd_soc;
+  sync i_sync_ddr_calib (
+    .clk_i ( soc_clk ), .rst_ni ( rst_n ),
+    .serial_i ( dram_calib_complete ), .serial_o ( dram_calib_soc )
+  );
+  sync i_sync_sd_cd (
+    .clk_i ( soc_clk ), .rst_ni ( rst_n ),
+    .serial_i ( ~sd_cd_i ), .serial_o ( sd_cd_soc )
+  );
+  assign board_led_o = {sd_cd_soc, dram_calib_soc, rst_n};
+`endif
+
 `ifdef USE_DDR
   dram_wrapper_xilinx #(
     .axi_soc_aw_chan_t ( axi_llc_aw_chan_t ),
@@ -566,7 +621,13 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
     .sys_rst_i    ( sys_rst ),
     .soc_resetn_i ( rst_n   ),
     .soc_clk_i    ( soc_clk ),
+`ifdef TARGET_KCU105
+    .dram_clk_p_i ( dram_clk_p ),
+    .dram_clk_n_i ( dram_clk_n ),
+    .dram_calib_complete_o ( dram_calib_complete ),
+`else
     .dram_clk_i   ( sys_clk ),
+`endif
     .soc_req_i    ( axi_dram_mst_req ),
     .soc_rsp_o    ( axi_dram_mst_rsp ),
     .*
@@ -664,6 +725,14 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
     .jtag_tdo_o,
     // TODO: connect to the tdo pad
     .jtag_tdo_oe_o      ( ),
+`else
+    // Native FPGA USER3/USER4 scan chains replace the external TAP pads.
+    .jtag_tck_i         ( 1'b0 ),
+    .jtag_trst_ni       ( rst_n ),
+    .jtag_tms_i         ( 1'b1 ),
+    .jtag_tdi_i         ( 1'b0 ),
+    .jtag_tdo_o         ( ),
+    .jtag_tdo_oe_o      ( ),
 `endif
     .i2c_sda_o          ( i2c_sda_soc_out ),
     .i2c_sda_i          ( i2c_sda_soc_in  ),
@@ -685,8 +754,16 @@ module cheshire_top_xilinx import cheshire_pkg::*; #(
     .vga_green_o,
     .vga_blue_o,
 `endif
+`ifdef CHESHIRE_FASE_FSM
+    .uart_tx_o          ( ),
+    .uart_rx_i          ( 1'b1 ),
+    .fase_memory_ready_i ( dram_calib_soc ),
+    .fase_uart_tx_o     ( uart_tx_o ),
+    .fase_uart_rx_i     ( uart_rx_i ),
+`else
     .uart_tx_o,
     .uart_rx_i,
+`endif
     .usb_clk_i          ( usb_clk ),
     .usb_rst_ni         ( rst_n ), // Technically should sync to `usb_clk`, but pulse is long enough
     .usb_dm_i,

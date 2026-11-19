@@ -6,6 +6,13 @@
 // Yvan Tortorella <yvan.tortorella@gmail.com>
 // Mojtaba Rostami <m.rostami1989@gmail.com>
 
+`ifdef TARGET_KCU105
+  `define USE_RESET
+  `define USE_DDR4
+  `define USE_SD
+  `define USE_VIO
+`endif
+
 `ifdef TARGET_VCU118
   `define USE_RESET
   `define USE_JTAG

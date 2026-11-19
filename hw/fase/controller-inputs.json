@@ -1,0 +1,20 @@
+{
+  "boom_rtl_sha256": "1dc62052cb77eab7daef014f32470c4b85ad20fb680f86602fb7522b64d463b1",
+  "boom_rom_sha256": "f30c202ffc921573d9b33841713299175f8cc61c3c9db39085412587e385fe50",
+  "modules": [
+    "Queue_91",
+    "NulCPUCtrlMPMicrocode",
+    "Tx",
+    "Rx",
+    "Queue_92",
+    "Queue_93",
+    "NulCPUCtrlMPWithUart"
+  ],
+  "rtl_change": "Use a portable readmemh ROM basename. ROM contents are unchanged.",
+  "uart_port_signature_matches_fsm": true,
+  "boom_source": "https://github.com/RanxiChen/vivado-risc-v/tree/b21fca4047a37ed61ced572cf41af0b6fb7e673d",
+  "controller_rtl_sha256": "1b660b5326b289c00402d0bb35633b5021e9a5be2ce11392f6796e23e8463fe9",
+  "control_rom_file": "fase_ctrl_microcode.mem",
+  "control_rom_sha256": "f30c202ffc921573d9b33841713299175f8cc61c3c9db39085412587e385fe50",
+  "archived_controller_rtl_sha256": "fc9695b17cca3bbf2e3911a8473c0d994e1181e8e7c1ffed8d606de29f34ac37"
+}

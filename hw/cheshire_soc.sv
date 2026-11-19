@@ -60,6 +60,11 @@ module cheshire_soc import cheshire_pkg::*; #(
   // UART interface
   output logic  uart_tx_o,
   input  logic  uart_rx_i,
+`ifdef CHESHIRE_FASE_FSM
+  input  logic  fase_memory_ready_i,
+  input  logic  fase_uart_rx_i,
+  output logic  fase_uart_tx_o,
+`endif
   // UART modem flow control
   output logic  uart_rts_no,
   output logic  uart_dtr_no,
@@ -629,6 +634,54 @@ module cheshire_soc import cheshire_pkg::*; #(
     logic              clic_irq_v;
     logic [5:0]        clic_irq_vsid;
 
+`ifdef CHESHIRE_FASE_FSM
+    logic fase_inited, fase_ext_itr, fase_stop_fetch;
+    logic [1:0] fase_priv;
+    logic fase_reg_rd, fase_reg_wr, fase_reg_busy;
+    logic [4:0] fase_reg_idx;
+    logic [63:0] fase_reg_wdata, fase_reg_rdata;
+    logic fase_inst_valid, fase_inst_ready, fase_inst_busy;
+    logic [31:0] fase_inst_raw;
+
+    if (i == 0) begin : gen_fase
+      (* ASYNC_REG = "TRUE" *) logic fase_rx_meta_q, fase_rx_sync_q;
+      always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+          fase_rx_meta_q <= 1'b1;
+          fase_rx_sync_q <= 1'b1;
+        end else begin
+          fase_rx_meta_q <= fase_uart_rx_i;
+          fase_rx_sync_q <= fase_rx_meta_q;
+        end
+      end
+
+      NulCPUCtrlMPWithUart i_fase_microcode (
+        .clock                 ( clk_i ),
+        .reset                 ( !rst_ni ),
+        .io_cpu_0_inited       ( fase_inited ),
+        .io_cpu_0_priv         ( fase_priv ),
+        .io_cpu_0_ext_itr      ( fase_ext_itr ),
+        .io_cpu_0_stop_fetch   ( fase_stop_fetch ),
+        .io_cpu_0_regacc_rd    ( fase_reg_rd ),
+        .io_cpu_0_regacc_wt    ( fase_reg_wr ),
+        .io_cpu_0_regacc_idx   ( fase_reg_idx ),
+        .io_cpu_0_regacc_wdata ( fase_reg_wdata ),
+        .io_cpu_0_regacc_rdata ( fase_reg_rdata ),
+        .io_cpu_0_regacc_busy  ( fase_reg_busy ),
+        .io_cpu_0_inst64       ( fase_inst_valid ),
+        .io_cpu_0_inst64_raw   ( fase_inst_raw ),
+        .io_cpu_0_inst64_ready ( fase_inst_ready ),
+        .io_cpu_0_inst64_busy  ( fase_inst_busy ),
+        .io_txd                ( fase_uart_tx_o ),
+        .io_rxd                ( fase_rx_sync_q ),
+        .io_dbg_sta            ( )
+      );
+    end else begin : gen_fase_unused
+      assign {fase_ext_itr, fase_stop_fetch, fase_reg_rd, fase_reg_wr,
+              fase_reg_idx, fase_reg_wdata, fase_inst_valid, fase_inst_raw} = '0;
+    end
+`endif
+
     cva6 #(
       .CVA6Cfg        ( build_config_pkg::build_config(Cva6Cfg) ),
       .axi_ar_chan_t  ( axi_cva6_ar_chan_t ),
@@ -641,6 +694,23 @@ module cheshire_soc import cheshire_pkg::*; #(
     ) i_core_cva6 (
       .clk_i,
       .rst_ni,
+`ifdef CHESHIRE_FASE_FSM
+      .fase_memory_ready_i ( fase_memory_ready_i && (i == 0) ),
+      .fase_inited_o       ( fase_inited ),
+      .fase_priv_o         ( fase_priv ),
+      .fase_ext_itr_i      ( fase_ext_itr ),
+      .fase_stop_fetch_i   ( fase_stop_fetch ),
+      .fase_reg_rd_i       ( fase_reg_rd ),
+      .fase_reg_wr_i       ( fase_reg_wr ),
+      .fase_reg_idx_i      ( fase_reg_idx ),
+      .fase_reg_wdata_i    ( fase_reg_wdata ),
+      .fase_reg_rdata_o    ( fase_reg_rdata ),
+      .fase_reg_busy_o     ( fase_reg_busy ),
+      .fase_inst_valid_i   ( fase_inst_valid ),
+      .fase_inst_raw_i     ( fase_inst_raw ),
+      .fase_inst_ready_o   ( fase_inst_ready ),
+      .fase_inst_busy_o    ( fase_inst_busy ),
+`endif
       .boot_addr_i      ( BootAddr ),
       .hart_id_i        ( 64'(i) ),
       .irq_i            ( xeip[i] ),

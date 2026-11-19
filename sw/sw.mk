@@ -158,6 +158,34 @@ $(foreach link,$(CHS_SW_LINK_MODES),$(eval $(call chs_sw_ld_elf_rule,$(link))))
 # Images from CVA6 SDK (built externally)
 CHS_CVA6_SDK_IMGS ?= $(addprefix $(CHS_SW_DIR)/deps/cva6-sdk/install64/,fw_payload.bin uImage)
 
+CHS_PHONY += chs-linux-kcu105
+chs-linux-kcu105: $(CHS_SW_DIR)/boot/linux.kcu105.gpt.bin
+
+# KCU105 uses a full 48 KiB ZSL partition and the SDK U-Boot raw MMC
+# kernel window (LBA 0x2000, 0x5000 sectors). Reject truncated payloads.
+$(CHS_SW_DIR)/boot/linux.kcu105.gpt.bin: $(CHS_SW_DIR)/boot/zsl.rom.bin $(CHS_SW_DIR)/boot/cheshire.kcu105.dtb $(CHS_CVA6_SDK_IMGS)
+	@set -eu; \
+	for spec in '$(word 1,$^):96' '$(word 2,$^):32' '$(word 3,$^):6144' '$(word 4,$^):20480'; do \
+		file="$${spec%:*}"; sectors="$${spec##*:}"; \
+		bytes=$$(stat -c '%s' "$$file"); \
+		if [ "$$bytes" -eq 0 ] || [ "$$bytes" -gt "$$((sectors * 512))" ]; then \
+			echo "Payload $$file ($$bytes bytes) does not fit $$sectors sectors" >&2; exit 1; \
+		fi; \
+	done; \
+	image=$$(mktemp '$@.XXXXXX'); trap 'rm -f "$$image"' EXIT; \
+	truncate -s $(CHS_SW_DISK_SIZE) "$$image"; \
+	sgdisk --clear -g --set-alignment=1 \
+		--new=1:64:159 --typecode=1:$(CHS_SW_ZSL_TGUID) \
+		--new=2:160:191 --typecode=2:$(CHS_SW_DTB_TGUID) \
+		--new=3:2048:8191 --typecode=3:$(CHS_SW_FW_TGUID) \
+		--new=4:8192:28671 --typecode=4:8300 \
+		--new=5:28672:0 --typecode=5:8200 "$$image"; \
+	dd if="$(word 1,$^)" of="$$image" bs=512 seek=64 conv=notrunc status=none; \
+	dd if="$(word 2,$^)" of="$$image" bs=512 seek=160 conv=notrunc status=none; \
+	dd if="$(word 3,$^)" of="$$image" bs=512 seek=2048 conv=notrunc status=none; \
+	dd if="$(word 4,$^)" of="$$image" bs=512 seek=8192 conv=notrunc status=none; \
+	mv "$$image" '$@'
+
 # Create full Linux disk image
 $(CHS_SW_DIR)/boot/linux.%.gpt.bin: $(CHS_SW_DIR)/boot/zsl.rom.bin $(CHS_SW_DIR)/boot/cheshire.%.dtb $(CHS_CVA6_SDK_IMGS)
 	truncate -s $(CHS_SW_DISK_SIZE) $@

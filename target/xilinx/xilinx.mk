@@ -38,6 +38,7 @@ $(CHS_XILINX_DIR)/build/%/:
 # We split the stem into a board and an IP and resolve dependencies accordingly
 $(CHS_XILINX_DIR)/build/%/out.xci: \
 		$(CHS_XILINX_DIR)/scripts/impl_ip.tcl \
+		$(CHS_XILINX_DIR)/scripts/common.tcl \
 		$$(wildcard $(CHS_XILINX_DIR)/src/ips/$$*.prj) \
 		| $(CHS_XILINX_DIR)/build/%/
 	@rm -f $(CHS_XILINX_DIR)/build/$(*)*.log $(CHS_XILINX_DIR)/build/$(*)*.jou
@@ -47,11 +48,12 @@ $(CHS_XILINX_DIR)/build/%/out.xci: \
 # Bitstreams #
 ##############
 
-CHS_XILINX_BOARDS := genesys2 vcu128 vcu118
+CHS_XILINX_BOARDS := genesys2 vcu128 vcu118 kcu105
 
 CHS_XILINX_IPS_genesys2 := clkwiz vio mig7s
 CHS_XILINX_IPS_vcu128   := clkwiz vio ddr4
 CHS_XILINX_IPS_vcu118   := clkwiz vio ddr4
+CHS_XILINX_IPS_kcu105   := clkwiz vio ddr4
 
 $(CHS_XILINX_DIR)/scripts/add_sources.%.tcl: $(CHS_ROOT)/Bender.yml $(CHS_XILINX_HW)
 	$(BENDER) script vivado -t fpga -t $* $(CHS_BENDER_RTL_FLAGS) > $@
@@ -59,6 +61,9 @@ $(CHS_XILINX_DIR)/scripts/add_sources.%.tcl: $(CHS_ROOT)/Bender.yml $(CHS_XILINX
 define chs_xilinx_bit_rule
 $$(CHS_XILINX_DIR)/out/%.$(1).bit: \
 		$$(CHS_XILINX_DIR)/scripts/impl_sys.tcl \
+		$$(CHS_XILINX_DIR)/scripts/common.tcl \
+		$$(CHS_XILINX_DIR)/constraints/%.xdc \
+		$$(CHS_XILINX_DIR)/constraints/$(1).xdc \
 		$$(CHS_XILINX_DIR)/scripts/add_sources.$(1).tcl \
 		$$(CHS_XILINX_IPS_$(1):%=$(CHS_XILINX_DIR)/build/$(1).%/out.xci) \
 		$$(CHS_HW_ALL) \
