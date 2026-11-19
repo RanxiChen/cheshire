@@ -55,7 +55,7 @@ cd cheshire
 git submodule update --init --recursive
 uv sync --locked
 export PATH="$PWD/.venv/bin:$PATH"
-export BENDER_GIT_SUBMODULES=false
+export BENDER_GIT_SUBMODULES=true
 bender checkout
 python3 handoff/run_build.py
 ```

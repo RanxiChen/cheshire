@@ -9,7 +9,8 @@ import subprocess
 import sys
 
 root = Path(__file__).resolve().parents[1]
-env = dict(os.environ, BENDER_GIT_SUBMODULES="false")
+env = os.environ.copy()
+env.setdefault("BENDER_GIT_SUBMODULES", "true")
 bender = shutil.which(env.get("BENDER", "bender"))
 vivado = shutil.which(env.get("VIVADO", "vivado"))
 if bender is None or vivado is None:

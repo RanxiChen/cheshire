@@ -5,7 +5,7 @@ root=$PWD
 out=$root/fase-validation
 mkdir -p "$out"
 bender=${BENDER:-bender}
-export BENDER_GIT_SUBMODULES=false
+export BENDER_GIT_SUBMODULES=${BENDER_GIT_SUBMODULES:-true}
 make -j4 "BENDER=$bender" hw-all
 cp "$root/hw/fase/fase_ctrl_microcode.mem" "$out/"
 "$bender" script verilator -t rtl -t cva6 \
